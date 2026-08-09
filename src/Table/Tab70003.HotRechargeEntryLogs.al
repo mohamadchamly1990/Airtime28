@@ -1,6 +1,6 @@
 table 70003 "Hot Recharge Entry Logs"
 {
-    Access = Internal;
+    //Access = Internal;
     DataClassification = ToBeClassified;
 
     fields

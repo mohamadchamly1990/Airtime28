@@ -19,12 +19,13 @@ codeunit 60006 "Hot Recharge Subscriber"
             Rec.TestField(Rec."LSC Keying in Price", Rec."LSC Keying in Price"::"Must Key in New Price");
     end;
 
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnAfterItemLine, '', false, false)]
-    Internal procedure POSTransactionEvents_OnAfterItemLine(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var CurrInput: Text)
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnAfterItemLineV2, '', false, false)]
+    Internal procedure POSTransactionEvents_OnAfterItemLine(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var TransactionContext: Record "LSC POS Transaction Context")
     var
         ItemL: Record Item;
     begin
-        If ItemL.Get(CurrInput) then begin
+
+        If ItemL.Get(TransactionContext.GetCurrInput()) then begin
             POSTransLine."Is Hot Recharge Product" := ItemL."Is Hot Recharge Product";
             POSTransLine."Hot Recharge Product ID" := ItemL."Hot Recharge Product ID";
             POSTransLine."Hot Recharge Product Currency" := ItemL."Hot Recharge Product Currency";
@@ -69,8 +70,8 @@ codeunit 60006 "Hot Recharge Subscriber"
         end;
     end;
 
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction", OnBeforeValidateChangeQty, '', false, false)]
-    internal procedure POSTransactionEvents_OnBeforeValidateChangeQty(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var CurrInput: Text; var Proceed: Boolean; var ErrorText: Text[250])
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", OnBeforeValidateChangeQty, '', false, false)]
+    internal procedure POSTransactionEvents_OnBeforeValidateChangeQty(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var Proceed: Boolean; var ErrorText: Text[250]; var TransactionContext: Record "LSC POS Transaction Context")
     var
         ItemL: Record Item;
         POSTransLineL: Record "LSC POS Trans. Line";
@@ -146,6 +147,43 @@ codeunit 60006 "Hot Recharge Subscriber"
             until POSTransLineL.Next() = 0;
     end;
 
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", 'OnBeforeRunCommandV2', '', false, false)]
+    // internal procedure POSTransactionEvents_OnBeforeRunCommand(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var POSMenuLine: Record "LSC POS Menu Line"; var TransactionContext: Record "LSC POS Transaction Context"; var isHandled: Boolean; TenderType: Record "LSC Tender Type")
+    // var
+    //     POSMenuLineL: Record "LSC POS Menu Line";
+    //     POSMenuProfileL: Record "LSC POS Menu Profile";
+    //     JsonBody: Text;
+    //     JsonObject: JsonObject;
+    //     Error001: Label 'Failed to send the HTTP request, Currency must be equal to: %1 current value is: %2';
+    //     POSTransLineL: Record "LSC POS Trans. Line";
+    // begin
+    //     if POSMenuLine.Command <> Enum::"LSC POS Command".Names.Get(Enum::"LSC POS Command".Ordinals.IndexOf(Enum::"LSC POS Command"::CURR_K.AsInteger())) then
+    //         exit;
+
+    //     POSTransLineL.Reset;
+    //     POSTransLineL.SetRange("Receipt No.", POSTransaction."Receipt No.");
+    //     POSTransLineL.SetRange("Entry Type", POSTransLineL."Entry Type"::Item);
+    //     POSTransLineL.SetRange("Is Hot Recharge Product", true);
+    //     POSTransLineL.SetRange("Entry Status", POSTransLineL."Entry Status"::" ");
+    //     If POSTransLineL.FindFirst() then
+    //         repeat
+    //             if POSTransLineL."Hot Recharge Product Currency" <> POSMenuLine.Parameter then begin
+    //                 POSTransLineL.VoidLine();
+    //                 Clear(JsonObject);
+
+    //                 JsonObject.Add('OriginalReference', POSTransLineL."Hot Recharge AgentReference");
+    //                 JsonObject.Add('Confirmed', false);
+    //                 JsonObject.Add('AgentReference', StrSubstNo('%1F', POSTransLineL."Hot Recharge AgentReference"));
+
+    //                 JsonObject.WriteTo(JsonBody);
+
+    //                 PostHotRechargeRequest(POSTransaction, StrSubstNo('%1%2', POSTransaction."Receipt No.", POSTransLineL."Line No."), JsonBody, StrSubstNo(Error001, POSTransLineL."Hot Recharge Product Currency", POSMenuLine.Parameter), true, false);
+    //                 POSTransaction_CU.CancelPressed(true, 0);
+    //                 isHandled := true;
+    //             end;
+    //         until POSTransLineL.Next() = 0;
+    // end;
+
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", 'OnBeforeRunCommandV2', '', false, false)]
     internal procedure POSTransactionEvents_OnBeforeRunCommand(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var POSMenuLine: Record "LSC POS Menu Line"; var TransactionContext: Record "LSC POS Transaction Context"; var isHandled: Boolean; TenderType: Record "LSC Tender Type")
     var
@@ -156,28 +194,41 @@ codeunit 60006 "Hot Recharge Subscriber"
         Error001: Label 'Failed to send the HTTP request, Currency must be equal to: %1 current value is: %2';
         POSTransLineL: Record "LSC POS Trans. Line";
     begin
-        if POSMenuLine.Command <> Enum::"LSC POS Command".Names.Get(Enum::"LSC POS Command".Ordinals.IndexOf(Enum::"LSC POS Command"::CURR_K.AsInteger())) then
+        if POSMenuLine.Command <>
+           Enum::"LSC POS Command".Names.Get(
+               Enum::"LSC POS Command".Ordinals.IndexOf(
+                   Enum::"LSC POS Command"::CURR_K.AsInteger()))
+        then
             exit;
 
-        POSTransLineL.Reset;
+        POSTransLineL.Reset();
         POSTransLineL.SetRange("Receipt No.", POSTransaction."Receipt No.");
         POSTransLineL.SetRange("Entry Type", POSTransLineL."Entry Type"::Item);
         POSTransLineL.SetRange("Is Hot Recharge Product", true);
         POSTransLineL.SetRange("Entry Status", POSTransLineL."Entry Status"::" ");
-        If POSTransLineL.FindFirst() then
+
+        if POSTransLineL.FindFirst() then
             repeat
                 if POSTransLineL."Hot Recharge Product Currency" <> POSMenuLine.Parameter then begin
                     POSTransLineL.VoidLine();
+
                     Clear(JsonObject);
+                    Clear(JsonBody);
 
                     JsonObject.Add('OriginalReference', POSTransLineL."Hot Recharge AgentReference");
+
                     JsonObject.Add('Confirmed', false);
+
                     JsonObject.Add('AgentReference', StrSubstNo('%1F', POSTransLineL."Hot Recharge AgentReference"));
 
                     JsonObject.WriteTo(JsonBody);
 
-                    PostHotRechargeRequest(POSTransaction, StrSubstNo('%1%2', POSTransaction."Receipt No.", POSTransLineL."Line No."), JsonBody, StrSubstNo(Error001, POSTransLineL."Hot Recharge Product Currency", POSMenuLine.Parameter), true, false);
-                    POSTransaction_CU.CancelPressed(true, 0);
+                    PostHotRechargeRequest(
+                        POSTransaction,
+                        StrSubstNo('%1%2', POSTransaction."Receipt No.", POSTransLineL."Line No."), JsonBody, StrSubstNo(Error001, POSTransLineL."Hot Recharge Product Currency", POSMenuLine.Parameter), true, false);
+
+                    POSTransaction_CU.CancelPressed(true, Enum::"LSC POS Trans. Request Infoc.".FromInteger(0));
+
                     isHandled := true;
                 end;
             until POSTransLineL.Next() = 0;
@@ -431,19 +482,39 @@ codeunit 60006 "Hot Recharge Subscriber"
         exit(false);
     end;
 
+    // internal procedure VoidHotRechargeLine(pPOSTransaction: Record "LSC POS Transaction")
+    // var
+    //     POSTransLineL: Record "LSC POS Trans. Line";
+    // begin
+    //     POSTransaction_CU.SetPOSState('SALES');
+    //     POSTransaction_CU.CancelPressed(true,0);
+
+    //     POSTransLineL.Reset;
+    //     POSTransLineL.SetRange("Receipt No.", pPOSTransaction."Receipt No.");
+    //     POSTransLineL.SetRange("Entry Type", POSTransLineL."Entry Type"::Item);
+    //     POSTransLineL.SetRange("Is Hot Recharge Product", true);
+    //     POSTransLineL.SetRange("Entry Status", POSTransLineL."Entry Status"::" ");
+    //     If POSTransLineL.FindFirst() then
+    //         POSTransLineL.VoidLine();
+    // end;
+
     internal procedure VoidHotRechargeLine(pPOSTransaction: Record "LSC POS Transaction")
     var
         POSTransLineL: Record "LSC POS Trans. Line";
+        RequestInfocL: Enum "LSC POS Trans. Request Infoc.";
     begin
         POSTransaction_CU.SetPOSState('SALES');
-        POSTransaction_CU.CancelPressed(true, 0);
 
-        POSTransLineL.Reset;
+        RequestInfocL := Enum::"LSC POS Trans. Request Infoc.".FromInteger(0);
+        POSTransaction_CU.CancelPressed(true, RequestInfocL);
+
+        POSTransLineL.Reset();
         POSTransLineL.SetRange("Receipt No.", pPOSTransaction."Receipt No.");
         POSTransLineL.SetRange("Entry Type", POSTransLineL."Entry Type"::Item);
         POSTransLineL.SetRange("Is Hot Recharge Product", true);
         POSTransLineL.SetRange("Entry Status", POSTransLineL."Entry Status"::" ");
-        If POSTransLineL.FindFirst() then
+
+        if POSTransLineL.FindFirst() then
             POSTransLineL.VoidLine();
     end;
 
