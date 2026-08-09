@@ -1,4 +1,4 @@
-pageextension 70007 "HR Retail Item Ext" extends "LSC Retail Item Card"
+pageextension 70007 "HR Retail Item Ext" extends "LSC Retail Item"
 {
     layout
     {

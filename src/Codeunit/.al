@@ -12,7 +12,7 @@ codeunit 60006 "Hot Recharge Subscriber"
         gPOSSessionCU.DeleteValue('HotRechargeTransIsVoided');
     end;
 
-    [EventSubscriber(ObjectType::Page, Page::"lsc Retail Item Card", OnAfterValidateEvent, "Keying in Price", false, false)]
+    [EventSubscriber(ObjectType::Page, Page::"LSC Retail Item", OnAfterValidateEvent, "Keying in Price", false, false)]
     Internal procedure Item_OnAfterValidateEvent(var Rec: Record Item; var xRec: Record Item)
     begin
         If Rec."Is Hot Recharge Product" then
@@ -146,8 +146,8 @@ codeunit 60006 "Hot Recharge Subscriber"
             until POSTransLineL.Next() = 0;
     end;
 
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", 'OnBeforeRunCommand', '', false, false)]
-    internal procedure POSTransactionEvents_OnBeforeRunCommand(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var CurrInput: Text; var POSMenuLine: Record "LSC POS Menu Line"; var isHandled: Boolean; TenderType: Record "LSC Tender Type"; var CusomterOrCardNo: Code[20])
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"LSC POS Transaction Events", 'OnBeforeRunCommandV2', '', false, false)]
+    internal procedure POSTransactionEvents_OnBeforeRunCommand(var POSTransaction: Record "LSC POS Transaction"; var POSTransLine: Record "LSC POS Trans. Line"; var POSMenuLine: Record "LSC POS Menu Line"; var TransactionContext: Record "LSC POS Transaction Context"; var isHandled: Boolean; TenderType: Record "LSC Tender Type")
     var
         POSMenuLineL: Record "LSC POS Menu Line";
         POSMenuProfileL: Record "LSC POS Menu Profile";
