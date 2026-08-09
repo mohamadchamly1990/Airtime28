@@ -8,10 +8,10 @@ tableextension 70007 "HR Item Ext" extends Item
             DataClassification = ToBeClassified;
             Caption = 'Is Hot Recharge Product';
 
-            trigger OnValidate()
-            begin
-                Rec.TestField("LSC Keying in Price", Rec."LSC Keying in Price"::"Must Key in New Price");
-            end;
+            // trigger OnValidate()
+            // begin
+            //     Rec.TestField("LSC Keying in Price", Rec."LSC Keying in Price"::"Must Key in New Price");
+            // end;
         }
         field(70001; "Hot Recharge Product ID"; Integer)
         {
